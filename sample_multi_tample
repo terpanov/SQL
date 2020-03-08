@@ -1,0 +1,574 @@
+WITH all_labels AS (
+    WITH pdo AS (
+        SELECT
+            job_id,
+            object_id,
+            page_id,
+            queue_name,
+            gaming_stream_content,
+            gameplay_by_streamer,
+            game_event,
+            cast_other_streams,
+            recast_with_commentary,
+            recast_without_commentary,
+            other_gaming_content,
+            yes_game_tag,
+            missing_game_tag,
+            correct_game_tag,
+            wrong_game_tag,
+            non_gaming_content,
+            commercial_stream,
+            irl_stream,
+            gamer_non_gaming_irl_stream,
+            chatting_irl_stream,
+            dancing_irl_stream,
+            unboxing_irl_stream,
+            other_irl_stream,
+            wrong_tag,
+            no_game_tag,
+            streamer_visible,
+            streamer_not_visible,
+            overlay_used,
+            overlay_not_used,
+            high_stream_quality,
+            low_stream_quality,
+            landscape_stream,
+            portrait_stream,
+            external_community,
+            no_external_community
+        FROM (
+            SELECT
+                first_review.queue_name AS queue_name,
+                first_review.job_id AS job_id,
+                first_review.object_id AS object_id,
+                first_review.page_id AS page_id,
+                SUM(
+                    CASE
+                        ---gaming stream content
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'stream_content::gaming_content'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS gaming_stream_content,
+                SUM(
+                    CASE
+                        ---gameplay stream
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'gaming_stream_type::gameplay_by_streamer'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS gameplay_by_streamer,
+                SUM(
+                    CASE
+                        ---game event stream
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'gaming_stream_type::cast_gaming_events'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS game_event,
+                SUM(
+                    CASE
+                        ---cast other streams
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'gaming_stream_type::cast_other_streams'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS cast_other_streams,
+                SUM(
+                    CASE
+                        ---cast with commentary
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'type_recast::recast_with_commentary'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS recast_with_commentary,
+                SUM(
+                    CASE
+                        ---cast without commentary
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'type_recast::recast_without_commentary'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS recast_without_commentary,
+                SUM(
+                    CASE
+                        ---other gaming content
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'gaming_stream_type::other_gaming_contents'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS other_gaming_content,
+                SUM(
+                    CASE
+                        ---there is a game tag
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'is_there_gametag::yes_game_tag'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS yes_game_tag,
+                SUM(
+                    CASE
+                        ---there is no game tag
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'is_there_gametag::missing_game_tag'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS missing_game_tag,
+                SUM(
+                    CASE
+                        ---correct game tag
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'is_gametag_correct::correct_game_tag'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS correct_game_tag,
+                SUM(
+                    CASE
+                        ---wrong game tag
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'is_gametag_correct::wrong_game_tag'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS wrong_game_tag,
+                SUM(
+                    CASE
+                        --- non-gaming tag
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'stream_content::non_gaming_content'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS non_gaming_content,
+                SUM(
+                    CASE
+                        --- commerical stream
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'non_gaming_stream_type::commercial_stream'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS commercial_stream,
+                SUM(
+                    CASE
+                        ---irl stream
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'non_gaming_stream_type::irl_stream'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS irl_stream,
+                SUM(
+                    CASE
+                        ---gaming creator - non-gaming acitivty
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'irl_stream::gamer_non_gaming_irl_stream'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS gamer_non_gaming_irl_stream,
+                SUM(
+                    CASE
+                        ---chatting stream
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'irl_stream::chatting_irl_stream'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS chatting_irl_stream,
+                SUM(
+                    CASE
+                        ---dancing stream
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'irl_stream::dancing_irl_stream'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS dancing_irl_stream,
+                SUM(
+                    CASE
+                        ---unboxing stream
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'irl_stream::unboxing_irl_stream'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS unboxing_irl_stream,
+                SUM(
+                    CASE
+                        ---other irl streams
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'irl_stream::other_irl_stream'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS other_irl_stream,
+                SUM(
+                    CASE
+                        ---gametag is used - so the tag is wrong
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'is_gametag_used::wrong_tag'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS wrong_tag,
+                SUM(
+                    CASE
+                        ---no gametag is used
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'is_gametag_used::no_game_tag'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS no_game_tag,
+                SUM(
+                    CASE
+                        ---streamer visible
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'is_streamer_visible::streamer_visible'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS streamer_visible,
+                SUM(
+                    CASE
+                        ---streamer NOT visible
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'is_streamer_visible::streamer_not_visible'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS streamer_not_visible,
+                SUM(
+                    CASE
+                        ---overlay used
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'is_overlay_used::overlay_used'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS overlay_used,
+                SUM(
+                    CASE
+                        ---overlay NOT used
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'is_overlay_used::overlay_not_used'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS overlay_not_used,
+                SUM(
+                    CASE
+                        ---high stream quality
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'stream_quality::high_stream_quality'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS high_stream_quality,
+                SUM(
+                    CASE
+                        ---low stream quality
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'stream_quality::low_stream_quality'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS low_stream_quality,
+                SUM(
+                    CASE
+                        ---landscape stream
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'stream_position::landscape_stream'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS landscape_stream,
+                SUM(
+                    CASE
+                        ---portrait stream
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'stream_position::portrait_stream'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS portrait_stream,
+                SUM(
+                    CASE
+                        ---external community
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'is_external_community::external_community'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS external_community,
+                SUM(
+                    CASE
+                        ---NO external community
+                        WHEN JSON_ARRAY_CONTAINS(
+                            JSON_EXTRACT(first_review.decision_data, '$.labels'),
+                            'is_external_community::no_external_community'
+                        ) THEN 1
+                        ELSE 0
+                    END
+                ) AS no_external_community
+            FROM (
+                SELECT
+                    job_extra_data['responsible_id'] AS page_id,
+                    decision_data,
+                    object_id,
+                    queue_id,
+                    job_id,
+                    actor_name,
+                    queue_name,
+                    ds
+                FROM single_review_tool_main:operations
+                WHERE
+                    queue_id = 201348334103291 --source queue
+                    AND event = 'job_decision_success'
+                    AND ds BETWEEN '2019-07-01' AND '2019-12-31'
+            ) first_review
+            GROUP BY
+                1, 2, 3, 4
+        )
+    ),
+    stream AS (
+        SELECT
+            video_id,
+            COALESCE(creator_type, 'other') AS creator_type,
+            video_owner_id
+        FROM games_live_video_stats:videos
+        WHERE
+            ds BETWEEN '2019-07-01' AND '2019-12-31'
+    )
+    SELECT
+        CASE
+            WHEN stream.creator_type IS NULL THEN 'other'
+            ELSE stream.creator_type
+        END AS creator_type,
+        pdo.job_id AS job_id,
+        pdo.page_id AS page_id,
+        stream.video_id AS video_id,
+        stream.video_owner_id AS video_owner_id,
+        pdo.object_id AS object_id,
+        SUM(pdo.gaming_stream_content) AS gaming_stream_content,
+        SUM(pdo.gameplay_by_streamer) AS gameplay_by_streamer,
+        SUM(pdo.game_event) AS game_event,
+        SUM(pdo.cast_other_streams) AS cast_other_streams,
+        SUM(pdo.recast_with_commentary) AS recast_with_commentary,
+        SUM(pdo.recast_without_commentary) AS recast_without_commentary,
+        SUM(pdo.other_gaming_content) AS other_gaming_content,
+        SUM(pdo.yes_game_tag) AS yes_game_tag,
+        SUM(pdo.missing_game_tag) AS missing_game_tag,
+        SUM(pdo.correct_game_tag) AS correct_game_tag,
+        SUM(pdo.wrong_game_tag) AS wrong_game_tag,
+        SUM(pdo.non_gaming_content) AS non_gaming_content,
+        SUM(pdo.commercial_stream) AS commercial_stream,
+        SUM(pdo.irl_stream) AS irl_stream,
+        SUM(pdo.gamer_non_gaming_irl_stream) AS gamer_non_gaming_irl_stream,
+        SUM(pdo.chatting_irl_stream) AS chatting_irl_stream,
+        SUM(pdo.dancing_irl_stream) AS dancing_irl_stream,
+        SUM(pdo.unboxing_irl_stream) AS unboxing_irl_stream,
+        SUM(pdo.other_irl_stream) AS other_irl_stream,
+        SUM(pdo.wrong_tag) AS wrong_tag,
+        SUM(pdo.no_game_tag) no_game_tag,
+        SUM(pdo.streamer_visible) AS streamer_visible,
+        SUM(pdo.streamer_not_visible) AS streamer_not_visible,
+        SUM(pdo.overlay_used) AS overlay_used,
+        SUM(pdo.overlay_not_used) AS overlay_not_used,
+        SUM(pdo.high_stream_quality) AS high_stream_quality,
+        SUM(pdo.low_stream_quality) AS low_stream_quality,
+        SUM(pdo.landscape_stream) AS landscape_stream,
+        SUM(pdo.portrait_stream) AS portrait_stream,
+        SUM(pdo.external_community) AS external_community,
+        SUM(pdo.no_external_community) AS no_external_community
+    FROM pdo
+    LEFT OUTER JOIN stream
+        ON pdo.object_id = stream.video_id
+    GROUP BY
+        1, 2, 3, 4, 5, 6
+    ORDER BY
+        2 DESC
+),
+strikes AS (
+    SELECT
+        srt_job_id,
+        page_id,
+        extra_data['decision'] AS violation_data,
+        MAX(strike_level) AS max_strikes
+    FROM stars_strikes:operations
+    WHERE
+        ds BETWEEN '2019-07-01' AND '2019-12-31'
+        AND event = 'strike_applied'
+        AND strike_status = 'STRIKE'
+    GROUP BY
+        1, 2, 3
+),
+ip_stats AS (
+    SELECT DISTINCT
+        ip_page_id,
+        pdo_object_id,
+        CASE ip_decision
+            WHEN 'delete_copyright_lob' THEN 1
+            ELSE 0
+        END AS deleted_job,
+        CASE ip_decision
+            WHEN 'disable_copyright_lob' THEN 1
+            ELSE 0
+        END AS disabled_job,
+        CASE ip_decision
+            WHEN 'mes_sai_second_review' THEN 1
+            ELSE 0
+        END AS second_review_job,
+        CASE ip_decision
+            WHEN 'ignore' THEN 1
+            ELSE 0
+        END AS ignored_job
+    FROM (
+        SELECT
+            pdo.decision_data AS pdo_decision_data,
+            pdo.responsible_id AS ip_object_id,
+            pdo.object_id AS pdo_object_id,
+            ip_stats.object_id AS ip_page_id,
+            pdo.job_id AS pdo_job_id,
+            ip_stats.ip_decision AS ip_decision,
+            pdo.commercial_stream
+        FROM (
+            SELECT
+                ds,
+                object_id,
+                job_id,
+                actor_name,
+                actor_id,
+                queue_name,
+                decision_data,
+                userid,
+                job_extra_data['responsible_id'] AS responsible_id,
+                CASE
+                    --- commerical stream
+                    WHEN JSON_ARRAY_CONTAINS(
+                        JSON_EXTRACT(decision_data, '$.labels'),
+                        'non_gaming_stream_type::commercial_stream'
+                    ) THEN 1
+                    ELSE 0
+                END AS commercial_stream
+            FROM single_review_tool_main:operations
+            WHERE
+                queue_id = 201348334103291 --[Gaming] Game Stream Insights queue
+                AND event = 'job_decision_success'
+                AND ds BETWEEN '2019-07-01' AND '2019-12-31'
+        ) pdo
+        INNER JOIN (
+            SELECT DISTINCT
+                object_id,
+                CAST(JSON_EXTRACT(decision_data, '$.decision_string') AS VARCHAR) AS ip_decision
+            FROM single_review_tool_main:operations
+            WHERE
+                queue_id = 2330689503877348 --IP FB Global Copyright LOB Gaming T1 queue
+                AND event = 'job_action_success'
+                AND ds BETWEEN '2019-07-01' AND '2019-12-31'
+            GROUP BY
+                1, 2
+            ORDER BY
+                1
+        ) ip_stats
+            ON pdo.responsible_id = CAST(ip_stats.object_id AS VARCHAR)
+        WHERE
+            pdo.commercial_stream = 1
+    )
+    GROUP BY
+        1, 2, 3, 4, 5, 6
+    ORDER BY
+        1
+)
+SELECT
+    COALESCE(all_labels.creator_type, 'other') AS creator_type,
+    COUNT(DISTINCT all_labels.job_id) AS unique_job_id,
+    COUNT(DISTINCT all_labels.page_id) AS unique_page_id,
+    COUNT(DISTINCT strikes.page_id) AS unique_strikes_pages,
+    COUNT(DISTINCT ip_stats.ip_page_id) AS unique_ip_pages,
+    SUM(ip_stats.deleted_job) AS deleted_pages,
+    SUM(ip_stats.disabled_job) AS disabled_pages,
+    SUM(ip_stats.second_review_job) AS second_review_pages,
+    SUM(ip_stats.ignored_job) AS ignore_pages,
+    SUM(strikes.max_strikes) AS total_strikes,
+    SUM(all_labels.gaming_stream_content) AS gaming_stream_content,
+    SUM(all_labels.gameplay_by_streamer) AS gameplay_by_streamer,
+    SUM(all_labels.game_event) AS game_event,
+    SUM(all_labels.cast_other_streams) AS cast_other_streams,
+    SUM(all_labels.recast_with_commentary) AS recast_with_commentary,
+    SUM(all_labels.recast_without_commentary) AS recast_without_commentary,
+    SUM(all_labels.other_gaming_content) AS other_gaming_content,
+    SUM(all_labels.yes_game_tag) AS yes_game_tag,
+    SUM(all_labels.missing_game_tag) AS missing_game_tag,
+    SUM(all_labels.correct_game_tag) AS correct_game_tag,
+    SUM(all_labels.wrong_game_tag) AS wrong_game_tag,
+    SUM(all_labels.non_gaming_content) AS non_gaming_content,
+    SUM(all_labels.commercial_stream) AS commercial_stream,
+    SUM(all_labels.irl_stream) AS irl_stream,
+    SUM(all_labels.gamer_non_gaming_irl_stream) AS gamer_non_gaming_irl_stream,
+    SUM(all_labels.chatting_irl_stream) AS chatting_irl_stream,
+    SUM(all_labels.dancing_irl_stream) AS dancing_irl_stream,
+    SUM(all_labels.unboxing_irl_stream) AS unboxing_irl_stream,
+    SUM(all_labels.other_irl_stream) AS other_irl_stream,
+    SUM(all_labels.wrong_tag) AS wrong_tag,
+    SUM(all_labels.no_game_tag) no_game_tag,
+    SUM(all_labels.streamer_visible) AS streamer_visible,
+    SUM(all_labels.streamer_not_visible) AS streamer_not_visible,
+    SUM(all_labels.overlay_used) AS overlay_used,
+    SUM(all_labels.overlay_not_used) AS overlay_not_used,
+    SUM(all_labels.high_stream_quality) AS high_stream_quality,
+    SUM(all_labels.low_stream_quality) AS low_stream_quality,
+    SUM(all_labels.landscape_stream) AS landscape_stream,
+    SUM(all_labels.portrait_stream) AS portrait_stream,
+    SUM(all_labels.external_community) AS external_community,
+    SUM(all_labels.no_external_community) AS no_external_community
+FROM all_labels
+FULL OUTER JOIN ip_stats
+    ON CAST(all_labels.video_id AS VARCHAR) = CAST(ip_stats.pdo_object_id AS VARCHAR)
+LEFT OUTER JOIN strikes
+    ON CAST(all_labels.job_id AS VARCHAR) = CAST(strikes.srt_job_id AS VARCHAR)
+GROUP BY
+    1
+ORDER BY
+    2 DESC
